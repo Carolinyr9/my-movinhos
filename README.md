@@ -1,4 +1,4 @@
-# 🎬 Film Catalog API
+# 🎬 My Movinhos
 
 ## 📌 Objetivo e público-alvo da API
 
@@ -45,7 +45,7 @@ As funcionalidades foram desenvolvidas com base em histórias de usuário, inclu
 
 Ou execute o .jar:
 
-java -jar target/film-catalog-0.0.1-SNAPSHOT.jar
+java -jar target/my-movinhos-0.0.1-SNAPSHOT.jar
 
 
 ## 🔐 Como obter o token JWT e testar os endpoints

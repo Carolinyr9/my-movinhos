@@ -1,9 +1,9 @@
 {
     "info": {
         "_postman_id": "ID",
-        "name": "Film Catalog API (ft-testing)",
+        "name": "My movinhos API (ft-testing)",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        "description": "Collection to test the Film Catalog API"
+        "description": "Collection to test the My movinhos API"
     },
     "item": [
         {

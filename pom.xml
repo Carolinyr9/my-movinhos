@@ -11,8 +11,8 @@
 	<groupId>br.ifsp</groupId>
 	<artifactId>to-do-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>film-catalog</name>
-	<description>API para gerenciamento de tarefas</description>
+	<name>my-movinhos</name>
+	<description>API para gerenciamento de filmes</description>
 	<url/>
 	<licenses>
 		<license/>
