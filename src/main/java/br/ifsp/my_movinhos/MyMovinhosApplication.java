@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class FilmCatalogApplication {
+public class MyMovinhosApplication {
 	public static void main(String[] args) {
-		SpringApplication.run(FilmCatalogApplication.class, args);
+		SpringApplication.run(MyMovinhosApplication.class, args);
 	}
 }

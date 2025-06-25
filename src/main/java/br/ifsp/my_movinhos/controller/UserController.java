@@ -105,15 +105,7 @@ public class UserController {
     })
     @PostMapping("/register")
     public ResponseEntity<UserResponseDTO> registerUser(@Valid @RequestBody UserRequestDTO userRequestDTO) {
-        // A criação do usuário principal agora é responsabilidade exclusiva do microsserviço de autenticação.
-        // O monolito registra o usuário no auth service e então, se necessário, cria uma representação local
-        // mínima para associar dados do catálogo de filmes, usando o ID retornado pelo auth service.
         UserResponseDTO createdUserInAuthService = authServiceClient.registerUser(userRequestDTO);
-
-        // Opcional: Se o UserService ainda precisar de uma entrada local para o usuário (ex: para gerenciar filmes favoritos/assistidos),
-        // ele pode criar uma entrada mínima aqui, usando o ID do usuário retornado pelo microsserviço de autenticação.
-        // Por exemplo: userService.createLocalUserEntry(createdUserInAuthService.getId());
-        // Certifique-se de que o UserResponseDTO do auth service contém o ID.
 
         return new ResponseEntity<>(createdUserInAuthService, HttpStatus.CREATED);
     }
