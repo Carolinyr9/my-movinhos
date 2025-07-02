@@ -14,7 +14,6 @@ import com.itextpdf.text.pdf.PdfWriter;
 import br.ifsp.my_movinhos.dto.ReviewAveragesDTO;
 import br.ifsp.my_movinhos.dto.ReviewRequestDTO;
 import br.ifsp.my_movinhos.dto.ReviewResponseDTO;
-import br.ifsp.my_movinhos.dto.page.PagedResponse;
 import br.ifsp.my_movinhos.dto.page.PagedResponseWithHiddenReviews;
 import br.ifsp.my_movinhos.exception.InvalidReviewStateException;
 import br.ifsp.my_movinhos.exception.ResourceNotFoundException;
@@ -29,7 +28,6 @@ import br.ifsp.my_movinhos.repository.UserWatchedRepository;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service

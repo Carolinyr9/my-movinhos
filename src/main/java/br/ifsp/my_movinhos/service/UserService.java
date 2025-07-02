@@ -5,16 +5,11 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.ifsp.my_movinhos.dto.MovieResponseDTO;
-import br.ifsp.my_movinhos.dto.RoleRequestDTO;
 import br.ifsp.my_movinhos.dto.RoleResponseDTO;
-import br.ifsp.my_movinhos.dto.UserPatchDTO;
-import br.ifsp.my_movinhos.dto.UserRequestDTO;
-import br.ifsp.my_movinhos.dto.UserRequestWithRolesDTO;
 import br.ifsp.my_movinhos.dto.UserResponseDTO;
 import br.ifsp.my_movinhos.dto.page.PagedResponse;
 import br.ifsp.my_movinhos.exception.ResourceNotFoundException;
@@ -36,9 +31,7 @@ import br.ifsp.my_movinhos.repository.UserRepository;
 import br.ifsp.my_movinhos.repository.UserWatchedRepository;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -53,7 +46,6 @@ public class UserService {
     private final ReviewRepository reviewRepository;
     private final UserFavoriteRepository userFavoriteRepository;
     private final UserWatchedRepository userWatchedRepository;
-    private final PasswordEncoder passwordEncoder; 
     private final ModelMapper modelMapper;
     private final PagedResponseMapper pagedResponseMapper;
     private final AuthServiceClient authServiceClient; 
@@ -63,7 +55,6 @@ public class UserService {
                        MovieRepository movieRepository,
                        UserFavoriteRepository userFavoriteRepository,
                        UserWatchedRepository userWatchedRepository,
-                       PasswordEncoder passwordEncoder,
                        ModelMapper modelMapper,
                        PagedResponseMapper pagedResponseMapper,
                        ReviewRepository reviewRepository,
@@ -73,7 +64,6 @@ public class UserService {
         this.movieRepository = movieRepository;
         this.userFavoriteRepository = userFavoriteRepository;
         this.userWatchedRepository = userWatchedRepository;
-        this.passwordEncoder = passwordEncoder;
         this.modelMapper = modelMapper;
         this.pagedResponseMapper = pagedResponseMapper;
         this.reviewRepository = reviewRepository;

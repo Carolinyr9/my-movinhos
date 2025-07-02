@@ -1,7 +1,5 @@
 package br.ifsp.my_movinhos.service;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
