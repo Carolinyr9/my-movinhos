@@ -36,14 +36,14 @@ public class AuthServiceClient {
 
         try {
             ResponseEntity<UserResponseDTO> response = restTemplate.exchange(
-                authServiceUrl + "/api/login", 
+                authServiceUrl + "/api/register", 
                 HttpMethod.POST,
                 request,
                 UserResponseDTO.class
             );
             return response.getBody();
         } catch (HttpClientErrorException ex) {
-            throw new RuntimeException("Erro ao registrar usuário no microsserviço de autenticação: " + ex.getResponseBodyAsString(), ex);
+            throw new RuntimeException("Erro ao registrar usuário no microsserviço de autenticação: " + ex.getMessage(), ex);
         } catch (Exception ex) {
             throw new RuntimeException("Erro inesperado ao registrar usuário: " + ex.getMessage(), ex);
         }
