@@ -1,4 +1,4 @@
-# 🎬 My Movinhos
+# 🎬 My Movienhos
 
 ## 📌 Objetivo e público-alvo da API
 
