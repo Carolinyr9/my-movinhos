@@ -21,7 +21,7 @@ import br.ifsp.my_movinhos.service.ReviewService;
 @Validated
 @RestController
 @RequestMapping("/api/moderation")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ROLE_ADMIN')") 
 public class ModerationController {
 
     private final ReviewService reviewService;
@@ -39,7 +39,7 @@ public class ModerationController {
     })
     @GetMapping("/reviews/flagged")
     public ResponseEntity<PagedResponse<FlaggedReviewResponseDTO>> getHeavilyFlaggedReviews(
-            @RequestParam(defaultValue = "10") int minFlags, // Pode ser configurável ou fixo
+            @RequestParam(defaultValue = "10") int minFlags, 
             @PageableDefault(size = 10) Pageable pageable) {
         PagedResponse<FlaggedReviewResponseDTO> reviews = contentFlagService.getHeavilyFlaggedReviews(minFlags, pageable);
         return ResponseEntity.ok(reviews);

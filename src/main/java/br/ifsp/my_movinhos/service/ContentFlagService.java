@@ -12,14 +12,13 @@ import br.ifsp.my_movinhos.dto.*;
 import br.ifsp.my_movinhos.dto.page.PagedResponse;
 import br.ifsp.my_movinhos.exception.InvalidReviewStateException;
 import br.ifsp.my_movinhos.exception.ResourceNotFoundException;
+import br.ifsp.my_movinhos.external.auth.AuthServiceClient;
 import br.ifsp.my_movinhos.mapper.PagedResponseMapper;
 import br.ifsp.my_movinhos.model.ContentFlag;
 import br.ifsp.my_movinhos.model.Review;
-import br.ifsp.my_movinhos.model.User;
 import br.ifsp.my_movinhos.model.key.UserReviewId;
 import br.ifsp.my_movinhos.repository.ContentFlagRepository;
 import br.ifsp.my_movinhos.repository.ReviewRepository;
-import br.ifsp.my_movinhos.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,7 +29,7 @@ public class ContentFlagService {
 
     private final ContentFlagRepository contentFlagRepository;
     private final ReviewRepository reviewRepository;
-    private final UserRepository userRepository;
+    private final AuthServiceClient authServiceClient;
     private final ReviewService reviewService;
     private final ModelMapper modelMapper;
     private final PagedResponseMapper pagedResponseMapper;
@@ -40,13 +39,13 @@ public class ContentFlagService {
 
     public ContentFlagService(ContentFlagRepository contentFlagRepository,
                               ReviewRepository reviewRepository,
-                              UserRepository userRepository,
+                              AuthServiceClient authServiceClient,
                               ReviewService reviewService,
                               ModelMapper modelMapper,
                               PagedResponseMapper pagedResponseMapper) {
         this.contentFlagRepository = contentFlagRepository;
         this.reviewRepository = reviewRepository;
-        this.userRepository = userRepository;
+        this.authServiceClient = authServiceClient;
         this.reviewService = reviewService;
         this.modelMapper = modelMapper;
         this.pagedResponseMapper = pagedResponseMapper;
@@ -54,8 +53,12 @@ public class ContentFlagService {
 
     @Transactional
     public ContentFlagResponseDTO flagReview(Long reviewId, Long reporterUserId, ContentFlagRequestDTO requestDTO) {
-        User reporter = userRepository.findById(reporterUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reporter User not found with id: " + reporterUserId));
+        UserResponseDTO reporterUser = null;
+        try {
+            reporterUser = authServiceClient.getUserById(reporterUserId);
+        } catch (RuntimeException e) { 
+            throw new ResourceNotFoundException("Reporter User not found with id: " + reporterUserId);
+        }
 
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
@@ -65,11 +68,11 @@ public class ContentFlagService {
             throw new InvalidReviewStateException("User has already flagged this review: " + reporterUserId);
         }
 
-        if (review.getUserWatched() != null && review.getUserWatched().getUser().getId().equals(reporterUserId)) {
+        if (review.getUserWatched() != null && review.getUserWatched().getUserId().equals(reporterUserId)) {
             throw new InvalidReviewStateException("Users cannot flag their own reviews.");
         }
 
-        ContentFlag contentFlag = new ContentFlag(reporter, review, requestDTO.getFlagReason());
+        ContentFlag contentFlag = new ContentFlag(reporterUser.getId(), review, requestDTO.getFlagReason());
         ContentFlag savedFlag = contentFlagRepository.save(contentFlag);
 
         long currentFlags = review.getFlags().size();
@@ -79,8 +82,8 @@ public class ContentFlagService {
 
         return ContentFlagResponseDTO.builder()
                 .reviewId(review.getId())
-                .reporterUserId(reporter.getId())
-                .reporterUsername(reporter.getUsername())
+                .reporterUserId(reporterUser.getId())
+                .reporterUsername(reporterUser.getUsername())
                 .flagReason(savedFlag.getFlagReason())
                 .createdAt(LocalDateTime.now().atZone(java.time.ZoneId.systemDefault()).toInstant())
                 .updatedAt(LocalDateTime.now().atZone(java.time.ZoneId.systemDefault()).toInstant())
@@ -111,10 +114,17 @@ public class ContentFlagService {
 
     private ReviewResponseDTO mapToReviewResponseDTO(Review review) {
         ReviewResponseDTO dto = modelMapper.map(review, ReviewResponseDTO.class);
+        UserResponseDTO user = null;
+        Long userId = review.getUserWatched().getUserId();
 
-        if (review.getUserWatched() != null && review.getUserWatched().getUser() != null) {
-            dto.setUsername(review.getUserWatched().getUser().getUsername());
-            dto.setUserId(review.getUserWatched().getUser().getId());
+        if (review.getUserWatched() != null && review.getUserWatched().getUserId() != null) {
+            try {
+                user = authServiceClient.getUserById(userId);
+            } catch (RuntimeException e) { 
+                throw new ResourceNotFoundException("Reporter User not found with id: " + userId);
+            }
+            dto.setUsername(user.getUsername());
+            dto.setUserId(user.getId());
         }
 
         if (review.getUserWatched() != null) {
@@ -122,7 +132,6 @@ public class ContentFlagService {
             dto.setMovieTitle(review.getUserWatched().getMovie().getTitle());
         }
 
-        // createdAt e updatedAt, se não vierem pelo modelMapper, copie manualmente:
         if (review.getCreatedAt() != null) {
             dto.setCreatedAt(LocalDateTime.now());
         }

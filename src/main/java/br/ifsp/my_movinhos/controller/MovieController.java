@@ -120,7 +120,7 @@ public class MovieController {
             @ApiResponse(responseCode = "403", description = "Acesso negado (Requer perfil de ADMIN)", 
                          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping
     public ResponseEntity<MovieResponseDTO> createMovie(@Valid @RequestBody MovieRequestDTO movieRequestDTO) {
         MovieResponseDTO createdMovie = movieService.createMovie(movieRequestDTO);

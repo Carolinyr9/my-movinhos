@@ -1,8 +1,6 @@
 package br.ifsp.my_movinhos.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import org.springframework.security.core.Authentication;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,29 +8,29 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
 import br.ifsp.my_movinhos.dto.ContentFlagRequestDTO;
 import br.ifsp.my_movinhos.dto.ContentFlagResponseDTO;
 import br.ifsp.my_movinhos.dto.ReviewAveragesDTO;
 import br.ifsp.my_movinhos.dto.ReviewRequestDTO;
 import br.ifsp.my_movinhos.dto.ReviewResponseDTO;
-import br.ifsp.my_movinhos.dto.UserResponseDTO;
-import br.ifsp.my_movinhos.dto.page.PagedResponse;
 import br.ifsp.my_movinhos.dto.page.PagedResponseWithHiddenReviews;
 import br.ifsp.my_movinhos.exception.ErrorResponse;
-import br.ifsp.my_movinhos.security.UserAuthenticated;
 import br.ifsp.my_movinhos.service.ContentFlagService;
 import br.ifsp.my_movinhos.service.ReviewService;
-
-import java.util.List;
+import br.ifsp.my_movinhos.service.UserService;
 
 @Tag(name = "Reviews", description = "API para gerenciamento de avaliações de filmes")
 @Validated
@@ -42,10 +40,12 @@ public class ReviewController {
 
     private final ReviewService reviewService;
     private final ContentFlagService contentFlagService;
+    private final UserService userService;
 
-    public ReviewController(ReviewService reviewService, ContentFlagService contentFlagService) {
+    public ReviewController(ReviewService reviewService, ContentFlagService contentFlagService, UserService userService) {
         this.reviewService = reviewService;
         this.contentFlagService = contentFlagService;
+        this.userService = userService;
     }
 
     @Operation(summary = "Criar uma nova avaliação para um filme assistido por um usuário")
@@ -57,7 +57,7 @@ public class ReviewController {
             @ApiResponse(responseCode = "409", description = "Filme não assistido pelo usuário ou já avaliado")
     })
     @PostMapping("/users/{userId}/movies/{movieId}/reviews")
-    @PreAuthorize("hasRole('USER') and @securityService.isOwner(authentication, #userId)")
+    @PreAuthorize("hasRole('ROLE_USER')")
     public ResponseEntity<ReviewResponseDTO> createReview(
             @PathVariable Long userId,
             @PathVariable Long movieId,
@@ -97,7 +97,6 @@ public class ReviewController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @GetMapping("/users/{userId}/reviews")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<PagedResponseWithHiddenReviews> getReviewsByUser(
             @PathVariable Long userId,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
@@ -112,23 +111,29 @@ public class ReviewController {
             @ApiResponse(responseCode = "403", description = "Acesso negado (usuário não é o proprietário da avaliação)"),
             @ApiResponse(responseCode = "404", description = "Avaliação não encontrada")
     })
-    @PreAuthorize("@securityService.isReviewOwner(authentication, #reviewId)")
     @PutMapping("/reviews/{reviewId}")
     public ResponseEntity<ReviewResponseDTO> updateReview(
             @PathVariable Long reviewId,
             @Valid @RequestBody ReviewRequestDTO reviewRequestDTO,
             Authentication authentication
     ) {
-        Long userId = extractUserIdFromAuthentication(authentication);
+        Object principal = authentication.getPrincipal();
+
+        Long userId = null;
+        if (principal instanceof Jwt) {
+            Jwt jwt = (Jwt) principal;
+            userId = jwt.getClaim("userId"); 
+        } else {
+            throw new IllegalStateException("Principal não é um JWT. Tipo: " + principal.getClass().getName());
+        }
+
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID could not be extracted from the token.");
+        }
+
         ReviewResponseDTO updatedReview = reviewService.updateReview(reviewId, userId, reviewRequestDTO);
         return ResponseEntity.ok(updatedReview);
     }
-
-    private Long extractUserIdFromAuthentication(Authentication authentication) {
-        UserAuthenticated userAuthenticated = (UserAuthenticated) authentication.getPrincipal();
-        return userAuthenticated.getUser().getId();  
-    }
-
 
     @Operation(summary = "Deletar uma avaliação")
     @ApiResponses({
@@ -137,13 +142,10 @@ public class ReviewController {
             @ApiResponse(responseCode = "404", description = "Avaliação não encontrada")
     })
     @DeleteMapping("/reviews/{reviewId}")
-    @PreAuthorize("@securityService.isReviewOwner(authentication, #reviewId)")
     public ResponseEntity<Void> deleteReview(
             @PathVariable Long reviewId,
              @RequestAttribute(name = "userIdFromPrincipal", required = false) Long userIdPrincipal // Injetado pelo SecurityService
     ) {
-        // O userIdPrincipal é usado pelo securityService.isReviewOwner.
-        // O service deleteReview pode usar o userId do principal se precisar, mas a autorização já foi feita.
         reviewService.deleteReview(reviewId, userIdPrincipal);
         return ResponseEntity.noContent().build();
     }
@@ -173,11 +175,22 @@ public class ReviewController {
     public ResponseEntity<ContentFlagResponseDTO> flagReview(
             @PathVariable Long reviewId,
             @Valid @RequestBody ContentFlagRequestDTO contentFlagRequestDTO,
-            @Parameter(hidden = true) @AuthenticationPrincipal UserAuthenticated reportedBy) {
-        System.out.println("Usuário autenticado ID: " + reportedBy.getUser().getId());
-        System.out.println("Usuário autenticado Username: " + reportedBy.getUser().getUsername());
+            Authentication authentication) {
+        Object principal = authentication.getPrincipal();
 
-        ContentFlagResponseDTO flagged = contentFlagService.flagReview(reviewId, reportedBy.getUser().getId(), contentFlagRequestDTO);
+        Long userId = null;
+        if (principal instanceof Jwt) {
+            Jwt jwt = (Jwt) principal;
+            userId = jwt.getClaim("userId"); 
+        } else {
+            throw new IllegalStateException("Principal não é um JWT. Tipo: " + principal.getClass().getName());
+        }
+
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID could not be extracted from the token.");
+        }
+
+        ContentFlagResponseDTO flagged = contentFlagService.flagReview(reviewId, userId, contentFlagRequestDTO);
 
         return new ResponseEntity<>(flagged, HttpStatus.CREATED);
     }
@@ -190,7 +203,7 @@ public class ReviewController {
                          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping(value = "/export/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public void exportAsPdf(HttpServletResponse response) throws Exception {
         reviewService.exportAsPdf(response);
     }
@@ -202,7 +215,7 @@ public class ReviewController {
             @ApiResponse(responseCode = "403", description = "Acesso negado"),
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<String> getUserStatistics(
             @PageableDefault(size = 10, sort = "reviewsCount") Pageable pageable,
             @PathVariable Long userId) {
@@ -217,7 +230,7 @@ public class ReviewController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @GetMapping("/reviews/{userId}/average-weighted")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ReviewAveragesDTO> getAverageWeighted(
             @PageableDefault(size = 10, sort = "reviewsCount") Pageable pageable, 
             @PathVariable Long userId) {

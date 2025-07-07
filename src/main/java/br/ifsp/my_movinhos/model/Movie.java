@@ -17,6 +17,10 @@ import br.ifsp.my_movinhos.model.enums.ContentRating;
 @Table(name = "movies")
 public class Movie extends BaseEntity {
 
+    @Column(nullable = false, unique = true)
+    @Id
+    private Long id;
+
     @Setter
     @Column(nullable = false, unique = true)
     private String title;   

@@ -1,5 +1,6 @@
 package br.ifsp.my_movinhos.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -24,4 +25,6 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     Page<Movie> findByGenresNameContainingIgnoreCase(@Param("genreName") String genreName, Pageable pageable);
     
     boolean existsByGenresId(Long genreId);
+    Optional<Movie> findById(Long id);
+
 }

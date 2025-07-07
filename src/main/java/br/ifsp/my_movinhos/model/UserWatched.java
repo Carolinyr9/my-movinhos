@@ -12,18 +12,14 @@ import br.ifsp.my_movinhos.model.key.UserMovieId;
 @NoArgsConstructor
 @Entity
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"user", "movie", "review"})
+@ToString(exclude = {"movie", "review"})
 @Table(name = "user_watcheds")
 public class UserWatched {
     @EmbeddedId
     private UserMovieId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userId") // Maps the 'userId' part of the EmbeddedId
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("movieId") // Maps the 'movieId' part of the EmbeddedId
+    @MapsId("movieId")
     private Movie movie;
 
     @Column(name = "watched_at", nullable = false)
@@ -37,15 +33,19 @@ public class UserWatched {
     )
     private Review review;
 
-    public UserWatched(User user, Movie movie, LocalDateTime watchedAt) {
-        this.user = user;
+    public UserWatched(Long userId, Movie movie, LocalDateTime watchedAt) {
+        // Inicializa a chave composta UserMovieId com o userId e o ID do filme.
+        this.id = new UserMovieId(userId, movie.getId());
         this.movie = movie;
-        this.id = new UserMovieId(user.getId(), movie.getId()); // Create the composite ID
         this.watchedAt = watchedAt;
     }
 
+    public Long getUserId() {
+        return this.id != null ? this.id.getUserId() : null;
+    }
+
     public void addReview(String content, int directionScore, int screenplayScore, int cinematographyScore, int generalScore) {
-        if (this.review == null) { // A UserWatched can only have one Review
+        if (this.review == null) { 
             Review newReview = new Review(this, content);
             newReview.setDirectionScore(directionScore);
             newReview.setScreenplayScore(screenplayScore);

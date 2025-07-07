@@ -20,36 +20,31 @@ public class Watchlist extends BaseEntity {
 
     @Setter
     private String description;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id", // This is the foreign key column in the 'watchlists' table.
-            nullable = false, // This makes the relationship MANDATORY. A watchlist cannot exist without a user.
-            updatable = false // The owner of a watchlist should not change after creation.
-    )
-    private User user;
+    
+    @Column(name = "user_id")
+    private Long userId;
 
     @ManyToMany(fetch = FetchType.LAZY, cascade = { CascadeType.PERSIST, CascadeType.MERGE })
     @JoinTable(
-            name = "watchlist_movies", // Name of the join table
-            joinColumns = @JoinColumn(name = "watchlist_id"), // Column for this entity's ID
-            inverseJoinColumns = @JoinColumn(name = "movie_id") // Column for the other entity's ID
+            name = "watchlist_movies",
+            joinColumns = @JoinColumn(name = "watchlist_id"),
+            inverseJoinColumns = @JoinColumn(name = "movie_id")
     )
     private Set<Movie> movies = new HashSet<>();
 
     public void addMovie(Movie movie) {
         this.movies.add(movie);
-        movie.getWatchlists().add(this); // Keep both sides in sync
+        movie.getWatchlists().add(this); 
     }
 
     public void removeMovie(Movie movie) {
         this.movies.remove(movie);
-        movie.getWatchlists().remove(this); // Keep both sides in sync
+        movie.getWatchlists().remove(this); 
     }
 
-    public Watchlist(String name, User user) {
+    public Watchlist(String name, Long userId) {
         this.name = name;
-        this.user = user;
+        this.userId = userId;
     }
     
 }

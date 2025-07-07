@@ -3,28 +3,23 @@ package br.ifsp.my_movinhos.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import br.ifsp.my_movinhos.model.common.BaseEntity;
-import br.ifsp.my_movinhos.model.enums.RoleName;
 
 @Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @Entity
+@EqualsAndHashCode(of = "id") 
 @Table(name = "roles")
-public class Role extends BaseEntity {
+public class Role extends BaseEntity { 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Setter
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, unique = true, length = 20, name = "role_name")
-    private RoleName roleName;
+    @Column(name = "role_name", nullable = false, unique = true)
+    private String roleName;
 
-    @ManyToMany(mappedBy = "roles", fetch = FetchType.EAGER)
-    private Set<User> users = new HashSet<>();
-
-    public Role(RoleName roleName) {
+    public Role(String roleName) {
         this.roleName = roleName;
     }
 }

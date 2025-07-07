@@ -15,7 +15,7 @@ import br.ifsp.my_movinhos.model.key.UserReviewId;
 @NoArgsConstructor
 @Entity
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"user", "review"})
+@ToString(exclude = {"review"})
 @Table(name = "content_flags")
 public class ContentFlag {
 
@@ -35,20 +35,18 @@ public class ContentFlag {
     @Column(name = "flag_reason", nullable = false)
     private String flagReason;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userId")
-    @JoinColumn(name = "reporter_user_id", referencedColumnName = "id")
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("reviewId")
     @JoinColumn(name = "review_id", referencedColumnName = "id")
     private Review review;
 
-    public ContentFlag(User user, Review review, String flagReason) {
-        this.user = user;
+    public ContentFlag(Long userId, Review review, String flagReason) {
+        this.userId = userId;
         this.review = review;
-        this.id = new UserReviewId(user.getId(), review.getId());
+        this.id = new UserReviewId(userId, review.getId());
         this.flagReason = flagReason;
     }
 }

@@ -38,7 +38,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<WatchlistResponseDTO> createWatchlist(
             @PathVariable Long userId,
             @Valid @RequestBody WatchlistRequestDTO watchlistRequestDTO) {
@@ -53,7 +52,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<PagedResponse<WatchlistResponseDTO>> getWatchlistsByUser(
             @PathVariable Long userId,
             @PageableDefault(size = 10, sort = "name") Pageable pageable) {
@@ -68,7 +66,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Watchlist ou Usuário não encontrado")
     })
     @GetMapping("/{watchlistId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<WatchlistResponseDTO> getWatchlistByIdAndUser(
             @PathVariable Long userId,
             @PathVariable Long watchlistId) {
@@ -84,7 +81,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Watchlist ou Usuário não encontrado")
     })
     @PutMapping("/{watchlistId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<WatchlistResponseDTO> updateWatchlist(
             @PathVariable Long userId,
             @PathVariable Long watchlistId,
@@ -100,7 +96,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Watchlist ou Usuário não encontrado")
     })
     @DeleteMapping("/{watchlistId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<Void> deleteWatchlist(
             @PathVariable Long userId,
             @PathVariable Long watchlistId) {
@@ -115,7 +110,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Watchlist, Usuário ou Filme não encontrado")
     })
     @PostMapping("/{watchlistId}/movies/{movieId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<WatchlistResponseDTO> addMovieToWatchlist(
             @PathVariable Long userId,
             @PathVariable Long watchlistId,
@@ -131,7 +125,6 @@ public class WatchlistController {
             @ApiResponse(responseCode = "404", description = "Watchlist, Usuário ou Filme não encontrado")
     })
     @DeleteMapping("/{watchlistId}/movies/{movieId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(authentication, #userId)")
     public ResponseEntity<WatchlistResponseDTO> removeMovieFromWatchlist(
             @PathVariable Long userId,
             @PathVariable Long watchlistId,

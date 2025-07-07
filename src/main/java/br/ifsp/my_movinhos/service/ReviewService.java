@@ -14,15 +14,16 @@ import com.itextpdf.text.pdf.PdfWriter;
 import br.ifsp.my_movinhos.dto.ReviewAveragesDTO;
 import br.ifsp.my_movinhos.dto.ReviewRequestDTO;
 import br.ifsp.my_movinhos.dto.ReviewResponseDTO;
+import br.ifsp.my_movinhos.dto.UserResponseDTO;
 import br.ifsp.my_movinhos.dto.page.PagedResponseWithHiddenReviews;
 import br.ifsp.my_movinhos.exception.InvalidReviewStateException;
 import br.ifsp.my_movinhos.exception.ResourceNotFoundException;
+import br.ifsp.my_movinhos.external.auth.AuthServiceClient;
 import br.ifsp.my_movinhos.mapper.PagedResponseMapper;
 import br.ifsp.my_movinhos.model.*;
 import br.ifsp.my_movinhos.model.key.UserMovieId;
 import br.ifsp.my_movinhos.repository.MovieRepository;
 import br.ifsp.my_movinhos.repository.ReviewRepository;
-import br.ifsp.my_movinhos.repository.UserRepository;
 import br.ifsp.my_movinhos.repository.UserWatchedRepository;
 
 import java.io.OutputStream;
@@ -34,20 +35,20 @@ import java.util.List;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
-    private final UserRepository userRepository;
+    private final AuthServiceClient authServiceClient;
     private final MovieRepository movieRepository;
     private final UserWatchedRepository userWatchedRepository;
     private final ModelMapper modelMapper;
     private final PagedResponseMapper pagedResponseMapper;
 
     public ReviewService(ReviewRepository reviewRepository,
-                         UserRepository userRepository,
+                         AuthServiceClient authServiceClient,
                          MovieRepository movieRepository,
                          UserWatchedRepository userWatchedRepository,
                          ModelMapper modelMapper,
                          PagedResponseMapper pagedResponseMapper) {
         this.reviewRepository = reviewRepository;
-        this.userRepository = userRepository;
+        this.authServiceClient = authServiceClient;
         this.movieRepository = movieRepository;
         this.userWatchedRepository = userWatchedRepository;
         this.modelMapper = modelMapper;
@@ -56,12 +57,16 @@ public class ReviewService {
 
     @Transactional
     public ReviewResponseDTO createReview(Long userId, Long movieId, ReviewRequestDTO reviewRequestDTO) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        UserResponseDTO userResponseDTO = null;
+        try {
+            userResponseDTO = authServiceClient.getUserById(userId);
+        } catch (RuntimeException e) { 
+            throw new ResourceNotFoundException("Reporter User not found with id: " + userId);
+        }
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new ResourceNotFoundException("Movie not found with id: " + movieId));
 
-        UserMovieId userMovieId = new UserMovieId(user.getId(), movie.getId());
+        UserMovieId userMovieId = new UserMovieId(userResponseDTO.getId(), movie.getId());
         UserWatched userWatched = userWatchedRepository.findById(userMovieId)
                 .orElseThrow(() -> new InvalidReviewStateException("User has not watched this movie. Cannot create review."));
 
@@ -97,7 +102,6 @@ public class ReviewService {
             .map(Review::getId)
             .toList();
 
-        // Filtrar só as visíveis para enviar no DTO
         List<ReviewResponseDTO> visibleReviewsDTO = reviewPage.stream()
             .filter(review -> !review.isHidden())
             .map(this::toDTO)
@@ -117,11 +121,11 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public PagedResponseWithHiddenReviews getReviewsByUser(Long userId, Pageable pageable) {
-        if (!userRepository.existsById(userId)) {
+        if (authServiceClient.getUserById(userId) == null) {
             throw new ResourceNotFoundException("User not found with id: " + userId);
         }
 
-        Page<Review> reviewPage = reviewRepository.findByUserWatched_User_Id(userId, pageable);
+        Page<Review> reviewPage = reviewRepository.findByUserWatched_Id_UserId(userId, pageable);
 
         List<Long> hiddenReviewIds = reviewPage.stream()
             .filter(Review::isHidden)
@@ -149,7 +153,7 @@ public class ReviewService {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
 
-        if (!review.getUserWatched().getUser().getId().equals(userId)) {
+        if (!review.getUserWatched().getUserId().equals(userId)) {
             throw new AccessDeniedException("User is not authorized to update this review.");
         }
 
@@ -207,9 +211,17 @@ public class ReviewService {
         document.open();
         document.add(new Paragraph("Lista de Avaliações"));
 
+        UserResponseDTO userResponseDTO = null;
         for (Review review : reviews) {
+            
+            try {
+                userResponseDTO = authServiceClient.getUserById(review.getUserWatched().getUserId());
+            } catch (RuntimeException e) { 
+                throw new ResourceNotFoundException("Reporter User not found with id: " + review.getUserWatched().getUserId());
+            }
+
             document.add(new Paragraph("Review ID: " + review.getId()));
-            document.add(new Paragraph("Usuário: " + review.getUserWatched().getUser().getUsername()));
+            document.add(new Paragraph("Usuário: " + userResponseDTO.getUsername()));
             document.add(new Paragraph("Filme: " + review.getUserWatched().getMovie().getTitle()));
             document.add(new Paragraph("Nota Geral: " + review.getGeneralScore()));
             document.add(new Paragraph("Nota de Direção: " + review.getDirectionScore()));
@@ -226,31 +238,46 @@ public class ReviewService {
     }
 
     public String getUserStatistics(Pageable pageable, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        UserResponseDTO userResponseDTO = null;
+        try {
+            userResponseDTO = authServiceClient.getUserById(userId);
+        } catch (RuntimeException e) { 
+            throw new ResourceNotFoundException("Reporter User not found with id: " + userId);
+        }
 
-        long totalReviews = reviewRepository.countByUserWatched_User_Id(userId);
-        long totalLikes = reviewRepository.sumLikesCountByUserWatched_User_Id(userId);
-        double averageGeneralScore = reviewRepository.calculateAverageGeneralScoreByUserWatched_User_Id(userId);
+        long totalReviews = reviewRepository.countByUserWatched_Id_UserId(userId);
+        long totalLikes = reviewRepository.sumLikesCountByUserWatchedIdUserId(userId);
+        double averageGeneralScore = reviewRepository.calculateAverageGeneralScoreByUserWatchedIdUserId(userId);
 
         return String.format("O usuário %s fez %d reviews, recebeu %d likes e tem uma média geral nas avaliações de %.2f.",
-                user.getUsername(), totalReviews, totalLikes, averageGeneralScore);
+                userResponseDTO.getUsername(), totalReviews, totalLikes, averageGeneralScore);
     }
 
     public ReviewAveragesDTO getAverageWeighted(Pageable pageable, Long userId) {
-        userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        UserResponseDTO userResponseDTO = null;
+        try {
+            userResponseDTO = authServiceClient.getUserById(userId);
+        } catch (RuntimeException e) { 
+            throw new ResourceNotFoundException("Reporter User not found with id: " + userId);
+        }
 
-        double directionAvg = reviewRepository.calculateAverageDirectionScoreByUserWatched_User_Id(userId);
-        double screenplayAvg = reviewRepository.calculateAverageScreenplayScoreByUserWatched_User_Id(userId);
-        double cinematographyAvg = reviewRepository.calculateAverageCinematographyScoreByUserWatched_User_Id(userId);
-        double generalAvg = reviewRepository.calculateAverageGeneralScoreByUserWatched_User_Id(userId);
+        double directionAvg = reviewRepository.calculateAverageDirectionScoreByUserWatchedIdUserId(userId);
+        double screenplayAvg = reviewRepository.calculateAverageScreenplayScoreByUserWatchedIdUserId(userId);
+        double cinematographyAvg = reviewRepository.calculateAverageCinematographyScoreByUserWatchedIdUserId(userId);
+        double generalAvg = reviewRepository.calculateAverageGeneralScoreByUserWatchedIdUserId(userId);
 
         return new ReviewAveragesDTO(directionAvg, screenplayAvg, cinematographyAvg, generalAvg);
     }
 
 
     private ReviewResponseDTO toDTO(Review review) {
+        UserResponseDTO userResponseDTO = null;
+        try {
+            userResponseDTO = authServiceClient.getUserById(review.getUserWatched().getUserId());
+        } catch (RuntimeException e) { 
+            throw new ResourceNotFoundException("Reporter User not found with id: " + review.getUserWatched().getUserId());
+        }
+        
         return ReviewResponseDTO.builder()
                 .id(review.getId())
                 .content(review.getContent())
@@ -264,8 +291,8 @@ public class ReviewService {
                         LocalDateTime.ofInstant(review.getCreatedAt(), java.time.ZoneId.systemDefault()) : null)
                 .updatedAt(review.getUpdatedAt() != null ?
                         LocalDateTime.ofInstant(review.getUpdatedAt(), java.time.ZoneId.systemDefault()) : null)
-                .userId(review.getUserWatched().getUser().getId())
-                .username(review.getUserWatched().getUser().getUsername())
+                .userId(userResponseDTO.getId())
+                .username(userResponseDTO.getUsername())
                 .movieId(review.getUserWatched().getMovie().getId())
                 .movieTitle(review.getUserWatched().getMovie().getTitle())
                 .build();
